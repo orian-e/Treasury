@@ -1,0 +1,79 @@
+services:
+  # ------------------------------------------------------------------
+  # BACKEND SERVICE (TEST ENVIRONMENT)
+  # Uses the exact same Dockerfile, but points to .env.test
+  # ------------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    env_file:
+      - ./backend/.env.test
+    environment:
+      - CORS_ORIGIN=http://frontend:3000
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    networks:
+      - test-network
+
+  # ------------------------------------------------------------------
+  # FRONTEND SERVICE
+  # ------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    # Ensure backend API calls from inside the frontend container
+    # map to the test backend service
+    extra_hosts:
+      - "backend:127.0.0.1"
+      - "localhost:127.0.0.1"
+    environment:
+      - REACT_APP_API_URL=http://backend:5000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - test-network
+
+  # ------------------------------------------------------------------
+  # PLAYWRIGHT RUNNER SERVICE
+  # ------------------------------------------------------------------
+  e2e-runner:
+    # Official Microsoft Playwright Image containing all browsers
+    image: mcr.microsoft.com/playwright:v1.58.2-jammy
+    # Mount the local project so the container can see your tests
+    volumes:
+      - .:/app
+    working_dir: /app
+    depends_on:
+      - frontend
+      - backend
+    # Keep the base URL pointing to the frontend container
+    environment:
+      - BASE_URL=http://frontend:3000
+    # Command to run immediately upon spinning up:
+    # 1. Install npm packages (so it gets Playwright types)
+    # 2. Add an explicit 'npx playwright install' just to make absolutely sure the container is ready
+    # 3. Wait for the frontend to be available and run the tests
+    command: >
+      bash -c "
+        npm install &&
+        echo 'Waiting for frontend to boot...' &&
+        npx wait-on tcp:frontend:3000 &&
+        npx wait-on tcp:backend:5000 &&
+        npx playwright test
+      "
+    networks:
+      - test-network
+
+networks:
+  test-network:
+    driver: bridge
