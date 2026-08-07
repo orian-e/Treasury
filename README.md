@@ -98,6 +98,8 @@ This repository is intended to be reviewed as source code and through recorded d
 
 Real environment files are excluded from Git. Use the `.env.example` files as templates only, and never commit local `.env`, `.env.*`, database credentials, JWT secrets, or generated reports.
 
+This repository is published as a single-commit snapshot of the codebase rather than the full development history.
+
 ---
 
 ## Getting Started
@@ -111,7 +113,7 @@ Real environment files are excluded from Git. Use the `.env.example` files as te
 1. **Clone the repository:**
    ```bash
    git clone <repository-url>
-   cd shared-expense-app
+   cd Treasury
    ```
 
 2. **Set up environment variables:**
