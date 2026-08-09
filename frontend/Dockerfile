@@ -17,6 +17,8 @@ EXPOSE 3000
 ENV CI=false
 ENV SKIP_PREFLIGHT_CHECK=true
 
+RUN chown -R node:node /app
+
 USER node
 
 CMD ["npm", "start"]
