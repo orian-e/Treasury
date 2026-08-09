@@ -13,6 +13,7 @@ import {
   useMediaQuery,
 } from "@mui/material";
 import ShowChartIcon from '@mui/icons-material/ShowChart';
+import ConfirmDialog from "./ConfirmDialog";
 import ExpenseList from "./ExpenseList";
 import ExpenseForm from "./ExpenseForm";
 import ExpenseSummary from "./ExpenseSummary";
@@ -31,6 +32,7 @@ interface MainAppProps {
 
 const MainApp: React.FC<MainAppProps> = ({ currentUser, onLogout }) => {
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [currentTab, setCurrentTab] = React.useState(0);
@@ -165,10 +167,11 @@ const MainApp: React.FC<MainAppProps> = ({ currentUser, onLogout }) => {
                 {isMobile ? currentUser : `Welcome, ${currentUser}`}
               </Typography>
               <Button
-                color="inherit"
-                onClick={onLogout}
+                color="error"
+                onClick={() => setLogoutDialogOpen(true)}
                 variant="outlined"
                 size="small"
+                sx={{ bgcolor: "background.paper" }}
               >
                 Logout
               </Button>
@@ -536,6 +539,20 @@ const MainApp: React.FC<MainAppProps> = ({ currentUser, onLogout }) => {
           </Typography>
         </Box>
       </Box>
+
+      {/* Logout Confirmation Dialog */}
+      <ConfirmDialog
+        open={logoutDialogOpen}
+        title="Log Out"
+        message="Are you sure you want to log out?"
+        confirmLabel="Logout"
+        color="error"
+        onCancel={() => setLogoutDialogOpen(false)}
+        onConfirm={() => {
+          setLogoutDialogOpen(false);
+          onLogout();
+        }}
+      />
 
       {/* Notification Snackbar */}
       <Snackbar

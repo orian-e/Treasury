@@ -1,6 +1,6 @@
 // src/tests/components/MainApp.test.tsx
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import MainApp from '../../components/MainApp';
 import { seedGroups, seedUsers, seedExpenses } from '../utils/mockData';
@@ -120,12 +120,18 @@ describe('MainApp - Integration Tests', () => {
     });
   });
 
-  it('should call onLogout when the logout button is clicked', async () => {
+  it('should ask for confirmation and call onLogout once confirmed', async () => {
     const mockOnLogout = jest.fn();
     render(<MainApp {...defaultProps} onLogout={mockOnLogout} />);
 
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: /logout/i }));
+
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText(/are you sure you want to log out/i)).toBeInTheDocument();
+    expect(mockOnLogout).not.toHaveBeenCalled();
+
+    await user.click(within(dialog).getByRole('button', { name: /logout/i }));
 
     expect(mockOnLogout).toHaveBeenCalledTimes(1);
   });

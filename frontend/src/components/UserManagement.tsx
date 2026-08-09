@@ -7,16 +7,12 @@ import {
   ListItemText,
   ListItemSecondaryAction,
   IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
   CircularProgress,
   Box,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import RemoveCircleIcon from '@mui/icons-material/RemoveCircle';
+import ConfirmDialog from "./ConfirmDialog";
 import { User } from "../models/Users";
 import { logger } from "../utils/logger";
 
@@ -159,78 +155,36 @@ const UserManagement: React.FC<UserManagementProps> = ({
       </Paper>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onClose={handleCancelDelete}>
-        <DialogTitle>
-          {removeFromGroup ? "Remove from Group" : "Delete User"}
-        </DialogTitle>
-        <DialogContent>
-          <Typography>
-            {removeFromGroup
-              ? `Are you sure you want to remove "${userToDelete?.name}" from this group?`
-              : `Are you sure you want to delete "${userToDelete?.name}"?`}
-          </Typography>
-
-          <Typography
-            variant="body2"
-            color={removeFromGroup ? "warning.main" : "error"}
-            sx={{ mt: 1 }}
-          >
-            {removeFromGroup
-              ? "The user will be removed from this group but may still exist in other groups."
-              : "This action cannot be undone. The user will be removed from all groups."}
-          </Typography>
-
-          {deleteError && (
-            <Box
-              sx={{
-                mt: 2,
-                p: 2,
-                backgroundColor: "error.light",
-                borderRadius: 1,
-              }}
-            >
-              <Typography
-                variant="body2"
-                color="error.dark"
-                sx={{ fontWeight: 600 }}
-              >
-                ❌ {removeFromGroup ? "Remove Failed" : "Delete Failed"}
-              </Typography>
-              <Typography variant="body2" color="error.dark" sx={{ mt: 0.5 }}>
-                {deleteError}
-              </Typography>
-              {deleteError.includes("expenses") && (
-                <Typography
-                  variant="caption"
-                  color="error.dark"
-                  sx={{ mt: 1, display: "block" }}
-                >
-                  💡 Delete the expenses involving this user first.
-                </Typography>
-              )}
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCancelDelete} disabled={deleting}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleConfirmDelete}
-            color={removeFromGroup ? "warning" : "error"}
-            disabled={deleting}
-            startIcon={deleting ? <CircularProgress size={16} /> : null}
-          >
-            {deleting
-              ? removeFromGroup
-                ? "Removing..."
-                : "Deleting..."
-              : removeFromGroup
-              ? "Remove from Group"
-              : "Delete Permanently"}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        title={removeFromGroup ? "Remove from Group" : "Delete User"}
+        message={
+          removeFromGroup
+            ? `Are you sure you want to remove "${userToDelete?.name}" from this group?`
+            : `Are you sure you want to delete "${userToDelete?.name}"?`
+        }
+        warningText={
+          removeFromGroup
+            ? "The user will be removed from this group but may still exist in other groups."
+            : "This action cannot be undone. The user will be removed from all groups."
+        }
+        confirmLabel={removeFromGroup ? "Remove from Group" : "Delete Permanently"}
+        confirmingLabel={removeFromGroup ? "Removing..." : "Deleting..."}
+        color={removeFromGroup ? "warning" : "error"}
+        loading={deleting}
+        error={
+          deleteError
+            ? `${removeFromGroup ? "Remove Failed" : "Delete Failed"}: ${deleteError}`
+            : null
+        }
+        errorHint={
+          deleteError?.includes("expenses")
+            ? "💡 Delete the expenses involving this user first."
+            : undefined
+        }
+        onCancel={handleCancelDelete}
+        onConfirm={handleConfirmDelete}
+      />
     </>
   );
 };
