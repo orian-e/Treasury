@@ -12,10 +12,21 @@ services:
     env_file:
       - ./backend/.env.test
     environment:
+      # Explicit so src/app.ts resolves .env.test rather than falling back to
+      # .env.development and relying on env_file happening to win.
+      - NODE_ENV=test
       - CORS_ORIGIN=http://frontend:3000
     volumes:
       - ./backend:/app
       - /app/node_modules
+    # Seed the test database with the edge-case fixtures before serving, so e2e
+    # always runs against known data. The seed wipes the -test database first.
+    command: >
+      bash -c "
+        npm install &&
+        npm run seed &&
+        npm start
+      "
     networks:
       - test-network
 
@@ -49,16 +60,22 @@ services:
   e2e-runner:
     # Official Microsoft Playwright Image containing all browsers
     image: mcr.microsoft.com/playwright:v1.58.2-jammy
-    # Mount the local project so the container can see your tests
+    # Mount the local project so the container can see your tests.
     volumes:
       - .:/app
     working_dir: /app
+    # Run as the host user so node_modules/ and playwright-report/ written into
+    # the mounted repo stay owned by you. As root this container leaves files
+    # you need sudo to delete. Override with UID/GID if your ids are not 1000.
+    user: "${UID:-1000}:${GID:-1000}"
     depends_on:
       - frontend
       - backend
     # Keep the base URL pointing to the frontend container
     environment:
       - BASE_URL=http://frontend:3000
+      # npm needs a writable HOME for its cache when not running as root.
+      - HOME=/tmp
     # Command to run immediately upon spinning up:
     # 1. Install npm packages (so it gets Playwright types)
     # 2. Add an explicit 'npx playwright install' just to make absolutely sure the container is ready

@@ -2,14 +2,39 @@ import { MongoClient, ObjectId, Db } from "mongodb";
 import * as dotenv from "dotenv";
 import * as bcrypt from "bcryptjs";
 
-// Load dev environment
-dotenv.config({ path: ".env.development" });
+// Pick the env file the same way src/app.ts does, so seeding follows the
+// same NODE_ENV convention as the server and the integration tests.
+// npm run seed sets NODE_ENV=test, so the default target is the test database.
+const envFile =
+  process.env.NODE_ENV === "production"
+    ? ".env.production"
+    : process.env.NODE_ENV === "test"
+      ? ".env.test"
+      : ".env.development";
+
+dotenv.config({ path: envFile });
 
 const MONGO_URI = process.env.MONGODB_URI;
 if (!MONGO_URI) {
-  console.error("❌ MONGODB_URI not set in .env.development");
+  console.error(`❌ MONGODB_URI not set in ${envFile}`);
   process.exit(1);
 }
+
+// This script wipes every user, group and expense before inserting. Mirror the
+// guard in tests/setup.ts so a mistargeted run cannot destroy dev or prod data.
+// Pass --allow-non-test to seed a database whose name has no -test suffix.
+const dbName = (MONGO_URI.split("/").pop() || "").split("?")[0];
+if (!dbName.includes("-test") && !process.argv.includes("--allow-non-test")) {
+  console.error(
+    `❌ SAFETY: refusing to wipe "${dbName}" (from ${envFile}).\n` +
+      `   This script deletes all users, groups and expenses before seeding.\n` +
+      `   Seed the test database instead (npm run seed), or pass --allow-non-test\n` +
+      `   if you really mean to overwrite "${dbName}".`
+  );
+  process.exit(1);
+}
+
+console.log(`🌱 Seeding "${dbName}" using ${envFile}`);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

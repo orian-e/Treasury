@@ -71,24 +71,58 @@ All expenses and balances are tracked per currency. There is **no automatic curr
 
 ## Testing
 
-The project uses a layered testing strategy.
-
-**Backend integration tests** (Jest + Supertest):
-```bash
-cd backend && npm test
-```
+The project uses a layered testing strategy. All three layers run in Docker, so
+Node does not need to be installed locally. Every command below requires
+`backend/.env.test` to exist (see [Setup](#setup)).
 
 **Frontend unit tests** (Jest + React Testing Library):
 ```bash
 docker compose run --rm frontend npm run test:coverage
 ```
+Components and utils. Touches no database.
+
+**Backend integration tests** (Jest + Supertest):
+```bash
+docker compose -f docker-compose.test.yml run --rm --no-deps backend \
+  bash -c "npm install && npm test"
+```
+Runs against the `-test` database and clears it before and after each run.
+
+> With Node 22 installed locally you can instead run `cd backend && npm install && npm test`.
 
 **End-to-end tests** (Playwright — Chromium only):
 ```bash
 docker compose -f docker-compose.test.yml up --build --abort-on-container-exit
 ```
+This seeds the `-test` database, starts the backend and frontend, waits for both,
+then runs the suite. On completion the other containers are torn down and report
+`exit code 1` — that is `--abort-on-container-exit` doing its job, not a failure.
+Check the `e2e-runner` result. The HTML report is written to `playwright-report/`.
 
 E2E tests cover auth flows, group management, expense creation/editing, and settlement calculations.
+
+### Seed data
+
+`backend/scripts/seed.ts` populates a database with fixtures covering the edge
+cases worth testing against — multi-payer expenses, several currencies, guest
+users, RTL/Hebrew names, and accented names.
+
+```bash
+# Seed the test database (NODE_ENV=test -> .env.test)
+docker compose -f docker-compose.test.yml run --rm --no-deps backend \
+  bash -c "npm install && npm run seed"
+
+# Seed the development database for demos (NODE_ENV=development -> .env.development)
+docker compose run --rm --no-deps backend \
+  bash -c "npm install && npm run seed:dev"
+```
+
+Seeded accounts log in with the password `password123`.
+
+> **The seed deletes all users, groups and expenses before inserting.** `npm run seed`
+> only targets a database whose name contains `-test`. Seeding any other database
+> requires the explicit `--allow-non-test` flag, which `npm run seed:dev` passes —
+> so `seed:dev` will overwrite whatever is in your development database.
 
 ---
 
@@ -106,7 +140,9 @@ This repository is published as a single-commit snapshot of the codebase rather 
 
 ### Prerequisites
 - Docker and Docker Compose
-- A [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) account (free tier is sufficient)
+- A [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) account (free tier is sufficient),
+  with **two databases** — one for development and one for tests. They can live in the
+  same cluster; the test database's name must contain `-test`.
 
 ### Setup
 
@@ -120,6 +156,7 @@ This repository is published as a single-commit snapshot of the codebase rather 
 
    ```bash
    cp backend/.env.example backend/.env.development
+   cp backend/.env.example backend/.env.test
    cp frontend/.env.example frontend/.env
    ```
 
@@ -127,6 +164,16 @@ This repository is published as a single-commit snapshot of the codebase rather 
    - `JWT_SECRET` — a random string of at least 32 characters
    - `MONGODB_URI` — your MongoDB Atlas connection string
    - `CORS_ORIGIN` — your frontend URL (default: `http://localhost:3000`)
+
+   Then edit `backend/.env.test` the same way, but point `MONGODB_URI` at a
+   **separate database** — the same cluster is fine, just a different database
+   name. **The database name must contain `-test`** (e.g. `shared-expense-app-test`);
+   `backend/tests/setup.ts` refuses to connect otherwise, and `npm run seed`
+   refuses to wipe it. This guard exists because the test suites and the seed
+   script both delete all users, groups and expenses before running.
+
+   `backend/.env.test` is required by `docker-compose.test.yml` — without it,
+   any `docker compose -f docker-compose.test.yml` command fails immediately.
 
    The frontend `.env` default values work as-is for local Docker development.
 
