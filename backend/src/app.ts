@@ -15,8 +15,8 @@ const envFile =
   process.env.NODE_ENV === "production"
     ? ".env.production"
     : process.env.NODE_ENV === "test"
-    ? ".env.test"
-    : ".env.development";
+      ? ".env.test"
+      : ".env.development";
 
 dotenv.config({ path: envFile });
 
@@ -46,11 +46,21 @@ mongoose
     logger.error("MongoDB connection error:", err);
   });
 
+const allowedOrigins = (process.env.CORS_ORIGIN || "http://localhost:3000")
+  .split(",")
+  .map((origin) => origin.trim());
+
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN || "http://localhost:3000",
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
-  })
+  }),
 );
 app.use(cookieParser());
 app.use(express.json());
