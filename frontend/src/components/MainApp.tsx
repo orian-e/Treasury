@@ -382,6 +382,10 @@ const MainApp: React.FC<MainAppProps> = ({ currentUser, onLogout }) => {
                       onGroupChange={selectGroup}
                     />
                     <ExpenseList
+                      // Remount on group change so a search typed in one group
+                      // does not hide the next group's expenses. The form's own
+                      // group dropdown swaps groups without unmounting this.
+                      key={selectedGroupId}
                       expenses={expenses}
                       users={users}
                       onDeleteExpense={deleteExpense}

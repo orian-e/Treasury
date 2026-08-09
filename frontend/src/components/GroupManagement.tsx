@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Box,
   Card,
@@ -21,6 +21,8 @@ import {
   Group as GroupIcon,
 } from "@mui/icons-material";
 import { Group } from "../models/Users";
+import { matchesQuery } from "../utils/search";
+import SearchField from "./SearchField";
 
 interface GroupManagementProps {
   groups: Group[];
@@ -71,6 +73,16 @@ const GroupManagement: React.FC<GroupManagementProps> = ({
   const [editingGroup, setEditingGroup] = useState<Group | null>(null);
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
+
+  const [groupSearchQuery, setGroupSearchQuery] = useState("");
+
+  const filteredGroups = useMemo(
+    () =>
+      groups.filter((group) =>
+        matchesQuery([group.name, group.description], groupSearchQuery)
+      ),
+    [groups, groupSearchQuery]
+  );
 
   const handleCreateGroup = async () => {
     if (!newGroupName.trim()) return;
@@ -265,14 +277,37 @@ const GroupManagement: React.FC<GroupManagementProps> = ({
         </Box>
       </Box>
 
+      {groups.length > 0 && (
+        <Box sx={{ mb: 2 }}>
+          <SearchField
+            value={groupSearchQuery}
+            onChange={setGroupSearchQuery}
+            ariaLabel="Search groups"
+            placeholder="Search your groups…"
+          />
+          {groupSearchQuery.trim() !== "" && (
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              aria-live="polite"
+              sx={{ display: "block", mt: 0.5 }}
+            >
+              Showing {filteredGroups.length} of {groups.length} groups
+            </Typography>
+          )}
+        </Box>
+      )}
+
       <Box display="flex" flexDirection="column" gap={3}>
         {" "}
-        {groups.length === 0 ? (
+        {filteredGroups.length === 0 ? (
           <Typography color="text.secondary">
-            No groups yet. Join a group to get started!
+            {groups.length === 0
+              ? "No groups yet. Join a group to get started!"
+              : "No groups match your search."}
           </Typography>
         ) : (
-          groups.map((group) => (
+          filteredGroups.map((group) => (
             <Card
               key={group.id}
               sx={{

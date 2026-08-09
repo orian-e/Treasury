@@ -235,4 +235,78 @@ describe("GroupManagement - Core Functions", () => {
       expect(mockOnSwitchToDashboard).toHaveBeenCalled();
     });
   });
+
+  describe("Group Search", () => {
+    const searchBox = () => screen.getByLabelText("Search groups");
+
+    it("should filter to the matching group only", async () => {
+      const user = userEvent.setup();
+      render(<GroupManagement {...defaultProps} />);
+
+      await user.click(searchBox());
+      await user.keyboard("office");
+
+      expect(screen.getByText("Office Lunch")).toBeInTheDocument();
+      expect(screen.queryByText("Trip Group")).not.toBeInTheDocument();
+    });
+
+    it("should match on description as well as name", async () => {
+      const user = userEvent.setup();
+      render(<GroupManagement {...defaultProps} />);
+
+      await user.click(searchBox());
+      await user.keyboard("vacation");
+
+      expect(screen.getByText("Trip Group")).toBeInTheDocument();
+      expect(screen.queryByText("Office Lunch")).not.toBeInTheDocument();
+    });
+
+    it("should restore all groups when the search is cleared", async () => {
+      const user = userEvent.setup();
+      render(<GroupManagement {...defaultProps} />);
+
+      await user.click(searchBox());
+      await user.keyboard("office");
+      await user.click(screen.getByLabelText("Clear search"));
+
+      expect(screen.getByText("Trip Group")).toBeInTheDocument();
+      expect(screen.getByText("Office Lunch")).toBeInTheDocument();
+    });
+
+    it("should distinguish a zero-match search from having no groups", async () => {
+      const user = userEvent.setup();
+      render(<GroupManagement {...defaultProps} />);
+
+      await user.click(searchBox());
+      await user.keyboard("zzzznotathing");
+
+      expect(
+        screen.getByText("No groups match your search.")
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText("No groups yet. Join a group to get started!")
+      ).not.toBeInTheDocument();
+    });
+
+    it("should keep the badge on the total count while filtering", async () => {
+      const user = userEvent.setup();
+      render(<GroupManagement {...defaultProps} />);
+
+      await user.click(searchBox());
+      await user.keyboard("office");
+
+      // The badge means "you are in N groups", not "N results".
+      expect(screen.getByText("2")).toBeInTheDocument();
+      expect(screen.getByText("Showing 1 of 2 groups")).toBeInTheDocument();
+    });
+
+    it("should not render the search box when there are no groups", () => {
+      render(<GroupManagement {...defaultProps} groups={[]} />);
+
+      expect(screen.queryByLabelText("Search groups")).not.toBeInTheDocument();
+      expect(
+        screen.getByText("No groups yet. Join a group to get started!")
+      ).toBeInTheDocument();
+    });
+  });
 });
