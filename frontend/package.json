@@ -5,13 +5,11 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "test": "echo 'Skipping tests for deployment - run test:fix later' && exit 0",
-    "eject": "react-scripts eject",
-    "dev": "nodemon src/app.ts",
+    "test": "react-scripts test --watchAll=false --runInBand --testTimeout=20000",
     "test:watch": "react-scripts test",
-    "test:coverage": "react-scripts test --coverage --watchAll=false",
-    "test:fix": "react-scripts test --watchAll=false --runInBand --testTimeout=20000",
-    "test:skip": "echo 'Tests skipped for deployment' && exit 0"
+    "test:coverage": "react-scripts test --coverage --watchAll=false --runInBand --testTimeout=20000",
+    "eject": "react-scripts eject",
+    "dev": "nodemon src/app.ts"
   },
   "dependencies": {
     "@date-io/date-fns": "^3.2.1",

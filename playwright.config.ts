@@ -10,8 +10,10 @@ export default defineConfig({
   reporter: 'html',
   
   use: {
-    // When running inside docker-compose, the frontend is accessible on the 'frontend' host
-    baseURL: process.env.BASE_URL || 'http://frontend:3000',
+    // Defaults to localhost so `npm run test:e2e` works against a locally
+    // running app. docker-compose.test.yml sets BASE_URL=http://frontend:3000
+    // explicitly, because inside the compose network the host is the service name.
+    baseURL: process.env.BASE_URL || 'http://localhost:3000',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',

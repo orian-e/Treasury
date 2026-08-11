@@ -1,91 +1,78 @@
 services:
-  # ------------------------------------------------------------------
-  # BACKEND SERVICE (TEST ENVIRONMENT)
-  # Uses the exact same Dockerfile, but points to .env.test
-  # ------------------------------------------------------------------
+  # Throwaway database; nothing is persisted and no host port is published.
+  mongo:
+    image: mongo:7
+    # The controllers wrap every write in a transaction, which a standalone
+    # mongod rejects. A single-node replica set is enough.
+    command: ["--replSet", "rs0", "--bind_ip_all"]
+    tmpfs:
+      - /data/db
+    healthcheck:
+      # Initiates the set on the first probe; healthy only once a primary has
+      # been elected, so the backend cannot connect mid-election.
+      test:
+        - CMD
+        - mongosh
+        - --quiet
+        - --eval
+        - "try { rs.status() } catch (e) { rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'mongo:27017' }] }) }; db.hello().isWritablePrimary || quit(1)"
+      interval: 3s
+      timeout: 10s
+      retries: 20
+      start_period: 5s
+    networks:
+      - test-network
+
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    ports:
-      - "5000:5000"
-    env_file:
-      - ./backend/.env.test
+    # Source and deps are baked into the image (see backend/Dockerfile).
     environment:
-      # Explicit so src/app.ts resolves .env.test rather than falling back to
-      # .env.development and relying on env_file happening to win.
       - NODE_ENV=test
       - CORS_ORIGIN=http://frontend:3000
-    volumes:
-      - ./backend:/app
-      - /app/node_modules
-    # Seed the test database with the edge-case fixtures before serving, so e2e
-    # always runs against known data. The seed wipes the -test database first.
-    command: >
-      bash -c "
-        npm install &&
-        npm run seed &&
-        npm start
-      "
+      # The database name must contain "-test", or tests/setup.ts and the seed
+      # script both refuse to run.
+      - MONGODB_URI=mongodb://mongo:27017/shared-expense-app-test?replicaSet=rs0
+      - JWT_SECRET=insecure-jwt-secret-for-local-tests-only-not-for-any-real-deployment
+    depends_on:
+      mongo:
+        condition: service_healthy
+    # Seed first, so e2e always runs against the known fixtures.
+    command: bash -c "npm run seed && npm start"
     networks:
       - test-network
 
-  # ------------------------------------------------------------------
-  # FRONTEND SERVICE
-  # ------------------------------------------------------------------
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
-    # Ensure backend API calls from inside the frontend container
-    # map to the test backend service
-    extra_hosts:
-      - "backend:127.0.0.1"
-      - "localhost:127.0.0.1"
     environment:
       - REACT_APP_API_URL=http://backend:5000
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
     depends_on:
       - backend
     networks:
       - test-network
 
-  # ------------------------------------------------------------------
-  # PLAYWRIGHT RUNNER SERVICE
-  # ------------------------------------------------------------------
   e2e-runner:
-    # Official Microsoft Playwright Image containing all browsers
+    # Must match @playwright/test in package.json, or the browsers are missing.
     image: mcr.microsoft.com/playwright:v1.58.2-jammy
-    # Mount the local project so the container can see your tests.
     volumes:
       - .:/app
     working_dir: /app
-    # Run as the host user so node_modules/ and playwright-report/ written into
-    # the mounted repo stay owned by you. As root this container leaves files
-    # you need sudo to delete. Override with UID/GID if your ids are not 1000.
+    # Run as the host user, or the report lands in your repo owned by root.
     user: "${UID:-1000}:${GID:-1000}"
     depends_on:
       - frontend
       - backend
-    # Keep the base URL pointing to the frontend container
     environment:
       - BASE_URL=http://frontend:3000
       # npm needs a writable HOME for its cache when not running as root.
       - HOME=/tmp
-    # Command to run immediately upon spinning up:
-    # 1. Install npm packages (so it gets Playwright types)
-    # 2. Add an explicit 'npx playwright install' just to make absolutely sure the container is ready
-    # 3. Wait for the frontend to be available and run the tests
     command: >
       bash -c "
         npm install &&
-        echo 'Waiting for frontend to boot...' &&
-        npx wait-on tcp:frontend:3000 &&
-        npx wait-on tcp:backend:5000 &&
+        npx wait-on http-get://frontend:3000 tcp:backend:5000 &&
         npx playwright test
       "
     networks:

@@ -2,21 +2,21 @@
 import path from "path";
 import dotenv from "dotenv";
 
-// Load test environment - use process.cwd() since tests run from backend/
-// Use override: true to ensure .env.test values take precedence over shell environment
+// Optional: tests run from backend/, and a fresh clone has no .env.test.
+// No override, so an explicit MONGODB_URI beats the file — otherwise a
+// developer's own .env.test could redirect a run at their real cluster.
 const envPath = path.join(process.cwd(), ".env.test");
-const result = dotenv.config({ path: envPath, override: true });
-
-if (result.error) {
-  console.error(`Failed to load .env.test from ${envPath}:`, result.error.message);
-}
+dotenv.config({ path: envPath });
 
 import mongoose from "mongoose";
 
 beforeAll(async () => {
   const MONGODB_URI = process.env.MONGODB_URI;
   if (!MONGODB_URI) {
-    throw new Error("MONGODB_URI is required in .env.test file for tests");
+    throw new Error(
+      "MONGODB_URI is required. Use docker-compose.test.yml, which supplies it, " +
+      "or set it in the environment or backend/.env.test."
+    );
   }
 
   // Safety check: ensure we're connecting to a test database
