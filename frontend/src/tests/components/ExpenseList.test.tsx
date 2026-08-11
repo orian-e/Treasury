@@ -204,3 +204,46 @@ describe("ExpenseList search", () => {
     expect(screen.getByText("Weekly groceries")).toBeInTheDocument();
   });
 });
+
+describe("ExpenseList delete confirmation", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  // Searching first narrows the list to one row, so "delete" is unambiguous.
+  const clickDeleteOnIkea = async (user: ReturnType<typeof userEvent.setup>) => {
+    render(<ExpenseList {...defaultProps} />);
+    await typeSearch(user, "ikea");
+    await user.click(screen.getByLabelText("delete"));
+  };
+
+  it("asks before deleting instead of deleting on the icon click", async () => {
+    const user = userEvent.setup();
+    await clickDeleteOnIkea(user);
+
+    expect(screen.getByText("Delete Expense")).toBeInTheDocument();
+    expect(
+      screen.getByText('Are you sure you want to delete "IKEA order (UK warehouse)"?')
+    ).toBeInTheDocument();
+    expect(defaultProps.onDeleteExpense).not.toHaveBeenCalled();
+  });
+
+  it("deletes once confirmed", async () => {
+    const user = userEvent.setup();
+    await clickDeleteOnIkea(user);
+
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+
+    expect(defaultProps.onDeleteExpense).toHaveBeenCalledWith("e2");
+  });
+
+  it("keeps the expense when cancelled", async () => {
+    const user = userEvent.setup();
+    await clickDeleteOnIkea(user);
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(defaultProps.onDeleteExpense).not.toHaveBeenCalled();
+    expect(screen.getByText("IKEA order (UK warehouse)")).toBeInTheDocument();
+  });
+});

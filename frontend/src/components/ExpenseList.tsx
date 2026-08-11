@@ -20,6 +20,7 @@ import { getCurrencySymbol } from "../utils/currencies";
 import { matchesQuery } from "../utils/search";
 import CurrencySection from "./CurrencySection";
 import SearchField from "./SearchField";
+import ConfirmDialog from "./ConfirmDialog";
 
 interface ExpenseListProps {
   users: User[];
@@ -37,6 +38,7 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
   loading = false,
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
 
   // `expenses` is already scoped to the selected group upstream, so this is
   // purely narrowing what is already on screen.
@@ -261,7 +263,7 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
                           <IconButton
                             edge="end"
                             aria-label="delete"
-                            onClick={() => onDeleteExpense(expense.id)}
+                            onClick={() => setExpenseToDelete(expense)}
                             color="error"
                           >
                             <DeleteIcon />
@@ -276,6 +278,23 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
           )}
         </>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={expenseToDelete !== null}
+        title="Delete Expense"
+        message={`Are you sure you want to delete "${expenseToDelete?.description}"?`}
+        warningText="This action cannot be undone."
+        confirmLabel="Delete"
+        confirmingLabel="Deleting..."
+        onCancel={() => setExpenseToDelete(null)}
+        onConfirm={() => {
+          if (expenseToDelete) {
+            onDeleteExpense(expenseToDelete.id);
+          }
+          setExpenseToDelete(null);
+        }}
+      />
     </Box>
   );
 };
