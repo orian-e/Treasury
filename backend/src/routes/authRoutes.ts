@@ -3,9 +3,16 @@ import rateLimit from "express-rate-limit";
 import logger from "../utils/logger";
 import AuthController from "../controllers/authController";
 
+// Brute-force protection on the credential endpoints. The test suites register
+// and log in dozens of times per run from a single IP, which exhausts a limit
+// sized for real users — and a throttled login fails as a timed-out post-login
+// locator, which reads as a broken UI rather than as rate limiting. Give the
+// test environment headroom; every other environment keeps the tight limit.
+const authAttemptsPerWindow = process.env.NODE_ENV === "test" ? 500 : 20;
+
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20,
+  max: authAttemptsPerWindow,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many attempts, please try again later" },
