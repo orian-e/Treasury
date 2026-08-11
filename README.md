@@ -71,35 +71,60 @@ All expenses and balances are tracked per currency. There is **no automatic curr
 
 ## Testing
 
-The project uses a layered testing strategy. All three layers run in Docker, so
-Node does not need to be installed locally. Every command below requires
-`backend/.env.test` to exist (see [Setup](#setup)).
+Docker is the only requirement. No MongoDB Atlas account, no `.env` file — the
+test stack brings up its own throwaway database:
 
-**Frontend unit tests** (Jest + React Testing Library):
 ```bash
-docker compose run --rm frontend npm run test:coverage
+npm run test:unit      # frontend unit (Jest + React Testing Library)
+npm run test:backend   # backend integration (Jest + Supertest)
+npm run test:e2e       # end-to-end (Playwright, Chromium)
+npm run test:clean     # stop the stack and drop its containers
 ```
-Components and utils. Touches no database.
 
-**Backend integration tests** (Jest + Supertest):
+Each wraps a `docker-compose.test.yml` command — see the `scripts` block in
+`package.json`. The stack runs its MongoDB in memory and publishes no ports, so
+it can run alongside your dev app and cannot reach a real database. The
+Playwright report lands in `playwright-report/`.
+
+E2E tests cover auth flows, group management, expense creation/editing, and
+settlement calculations. `npm run test:e2e` seeds the database from
+[`backend/scripts/seed.ts`](backend/scripts/seed.ts) before starting the app,
+and [`e2e/seeded-fixtures.spec.ts`](e2e/seeded-fixtures.spec.ts) asserts against
+those fixtures — split amounts, per-currency balances, RTL names — so a change
+that breaks an existing scenario fails there. The other specs register their own
+users and do not depend on the seed.
+
+**Adding a feature?** Put new fixtures in `backend/scripts/seed.ts` and new
+assertions against them in `e2e/seeded-fixtures.spec.ts`; anything that needs to
+create or edit data belongs in a spec that registers its own user.
+
+To iterate on a single spec, leave the stack up and re-run just that test —
+`e2e/` is mounted, so no rebuild is needed:
+
 ```bash
-docker compose -f docker-compose.test.yml run --rm --no-deps backend \
-  bash -c "npm install && npm test"
+docker compose -f docker-compose.test.yml run --rm e2e-runner \
+  npx playwright test -g "per currency"
 ```
-Runs against the `-test` database and clears it before and after each run.
 
-> With Node 22 installed locally you can instead run `cd backend && npm install && npm test`.
+Source changes to `backend/` or `frontend/` do need a rebuild; the `--build` in
+the scripts above handles it.
 
-**End-to-end tests** (Playwright — Chromium only):
-```bash
-docker compose -f docker-compose.test.yml up --build --abort-on-container-exit
-```
-This seeds the `-test` database, starts the backend and frontend, waits for both,
-then runs the suite. On completion the other containers are torn down and report
-`exit code 1` — that is `--abort-on-container-exit` doing its job, not a failure.
-Check the `e2e-runner` result. The HTML report is written to `playwright-report/`.
+These same commands run in CI on every push:
+[`.github/workflows/tests.yml`](.github/workflows/tests.yml).
 
-E2E tests cover auth flows, group management, expense creation/editing, and settlement calculations.
+<details>
+<summary>Running without Docker</summary>
+
+With Node 22, `npm run install:all` once, then `npm --prefix frontend test` for
+the unit suite. Playwright can drive an already-running app with
+`npx playwright test --grep-invert @seeded` — the excluded specs need the seeded
+database, which this path does not create.
+
+The backend suite needs a MongoDB replica set, because the controllers wrap
+every write in a transaction. Setting one up by hand is more work than just
+using `npm run test:backend` above.
+
+</details>
 
 ### Seed data
 
@@ -108,9 +133,9 @@ cases worth testing against — multi-payer expenses, several currencies, guest
 users, RTL/Hebrew names, and accented names.
 
 ```bash
-# Seed the test database (NODE_ENV=test -> .env.test)
-docker compose -f docker-compose.test.yml run --rm --no-deps backend \
-  bash -c "npm install && npm run seed"
+# Seed the throwaway test database. npm run test:e2e already does this; run it
+# directly to explore the fixtures by hand.
+docker compose -f docker-compose.test.yml run --rm --build backend npm run seed
 
 # Seed the development database for demos (NODE_ENV=development -> .env.development)
 docker compose run --rm --no-deps backend \
@@ -140,9 +165,9 @@ This repository is published as a single-commit snapshot of the codebase rather 
 
 ### Prerequisites
 - Docker and Docker Compose
-- A [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) account (free tier is sufficient),
-  with **two databases** — one for development and one for tests. They can live in the
-  same cluster; the test database's name must contain `-test`.
+- A [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) account (free tier is
+  sufficient) **to run the app**. Not needed to run the tests — the test stack
+  ships its own disposable database, see [Testing](#testing).
 
 ### Setup
 
@@ -156,7 +181,6 @@ This repository is published as a single-commit snapshot of the codebase rather 
 
    ```bash
    cp backend/.env.example backend/.env.development
-   cp backend/.env.example backend/.env.test
    cp frontend/.env.example frontend/.env
    ```
 
@@ -165,17 +189,14 @@ This repository is published as a single-commit snapshot of the codebase rather 
    - `MONGODB_URI` — your MongoDB Atlas connection string
    - `CORS_ORIGIN` — your frontend URL (default: `http://localhost:3000`)
 
-   Then edit `backend/.env.test` the same way, but point `MONGODB_URI` at a
-   **separate database** — the same cluster is fine, just a different database
-   name. **The database name must contain `-test`** (e.g. `shared-expense-app-test`);
-   `backend/tests/setup.ts` refuses to connect otherwise, and `npm run seed`
-   refuses to wipe it. This guard exists because the test suites and the seed
-   script both delete all users, groups and expenses before running.
-
-   `backend/.env.test` is required by `docker-compose.test.yml` — without it,
-   any `docker compose -f docker-compose.test.yml` command fails immediately.
-
    The frontend `.env` default values work as-is for local Docker development.
+
+   > This step is only needed to **run the app**. The test stack is
+   > self-contained — see [Testing](#testing). `backend/.env.test` is optional:
+   > create it only if you want the suites to run against your own database
+   > instead of the disposable one, in which case the database name must contain
+   > `-test`, because the suites and the seed script delete every user, group and
+   > expense before running.
 
 3. **Start the application:**
    ```bash
