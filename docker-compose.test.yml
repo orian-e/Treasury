@@ -1,3 +1,8 @@
+# Pinned so the test stack never shares a Compose project with
+# docker-compose.yml. Without this both derive the project name from the
+# directory, and `test:clean` (down --remove-orphans) tears down the dev app.
+name: shared-expense-test
+
 services:
   # Throwaway database; nothing is persisted and no host port is published.
   mongo:

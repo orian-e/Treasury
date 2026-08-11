@@ -83,8 +83,14 @@ npm run test:clean     # stop the stack and drop its containers
 
 Each wraps a `docker-compose.test.yml` command — see the `scripts` block in
 `package.json`. The stack runs its MongoDB in memory and publishes no ports, so
-it can run alongside your dev app and cannot reach a real database. The
-Playwright report lands in `playwright-report/`.
+it cannot reach a real database or collide with your dev app's ports. It also
+pins its own Compose project name (`shared-expense-test`, against the dev
+stack's `shared-expense-dev`), so `docker compose up` can keep running in
+another terminal while the suites run. The Playwright report lands in
+`playwright-report/`.
+
+Run the suites one at a time. `test:e2e` uses `--abort-on-container-exit`, so
+starting `test:unit` alongside it tears the e2e stack down mid-run (exit 137).
 
 E2E tests cover auth flows, group management, expense creation/editing, and
 settlement calculations. `npm run test:e2e` seeds the database from

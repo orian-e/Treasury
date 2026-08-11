@@ -1,3 +1,8 @@
+# Pinned so the dev stack never shares a Compose project with
+# docker-compose.test.yml. Without this both derive the project name from the
+# directory, and the test commands recreate or remove these containers.
+name: shared-expense-dev
+
 services:
   backend:
     build:
