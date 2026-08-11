@@ -102,10 +102,11 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
           />
           {searchQuery.trim() !== "" && (
             <Typography
+              className="search-field-status"
               variant="caption"
               color="text.secondary"
               aria-live="polite"
-              sx={{ display: "block", mt: 0.5 }}
+              sx={{ mt: 0.5 }}
             >
               Showing {filteredExpenses.length} of {expenses.length} expenses
             </Typography>

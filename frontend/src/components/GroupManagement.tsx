@@ -287,10 +287,11 @@ const GroupManagement: React.FC<GroupManagementProps> = ({
           />
           {groupSearchQuery.trim() !== "" && (
             <Typography
+              className="search-field-status"
               variant="caption"
               color="text.secondary"
               aria-live="polite"
-              sx={{ display: "block", mt: 0.5 }}
+              sx={{ mt: 0.5 }}
             >
               Showing {filteredGroups.length} of {groups.length} groups
             </Typography>

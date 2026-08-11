@@ -1,0 +1,52 @@
+// Styling for SearchField. These boxes filter a list that is already on
+// screen, so they are deliberately quieter than the form inputs above them:
+// pill shape and a tinted fill read as "control", while the square outlined
+// fields of the expense form read as "data you are entering".
+
+$search-fill: #f4f4f6;
+$search-fill-hover: #ececf0;
+$search-border: #e0e0e0;
+$search-focus-ring: rgba(91, 44, 135, 0.16); // theme palette.primary.main
+
+.search-field {
+  // NN/g puts the practical minimum at 27 characters; the cap keeps the box
+  // from stretching to the full width of an 800px card, which reads as a form
+  // field rather than a filter. Full width below the cap, so mobile is fine.
+  max-width: 32rem;
+
+  .MuiOutlinedInput-root {
+    border-radius: 999px;
+    background-color: $search-fill;
+    transition: background-color 120ms ease, box-shadow 120ms ease;
+
+    .MuiOutlinedInput-notchedOutline {
+      border-color: $search-border;
+    }
+
+    &:hover {
+      background-color: $search-fill-hover;
+    }
+
+    // Solid fill plus a soft ring on focus, so the active box separates from
+    // the list behind it without relying on MUI's 2px border alone.
+    &.Mui-focused {
+      background-color: #fff;
+      box-shadow: 0 0 0 3px $search-focus-ring;
+    }
+  }
+
+  // The clear button only exists while there is a query. Without a reserved
+  // slot the input would widen and re-wrap the placeholder on every clear.
+  .search-field__clear-slot {
+    display: flex;
+    width: 1.75rem;
+    justify-content: center;
+  }
+}
+
+// Result count, e.g. "Showing 3 of 12 expenses". Sits under the box and is
+// tied to it, rather than being another block of body text in the list.
+.search-field-status {
+  display: block;
+  padding-left: 0.875rem;
+}

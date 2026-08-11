@@ -20,6 +20,7 @@ const SearchField: React.FC<SearchFieldProps> = ({
   ariaLabel,
 }) => (
   <TextField
+    className="search-field"
     size="small"
     fullWidth
     value={value}
@@ -35,18 +36,22 @@ const SearchField: React.FC<SearchFieldProps> = ({
           <SearchIcon fontSize="small" color="action" />
         </InputAdornment>
       ),
-      endAdornment: value ? (
-        <InputAdornment position="end">
-          <IconButton
-            size="small"
-            aria-label="Clear search"
-            onClick={() => onChange("")}
-            edge="end"
-          >
-            <ClearIcon fontSize="small" />
-          </IconButton>
+      // Always rendered, so the input does not resize when the clear button
+      // appears on the first keystroke and disappears again on clear.
+      endAdornment: (
+        <InputAdornment position="end" className="search-field__clear-slot">
+          {value && (
+            <IconButton
+              size="small"
+              aria-label="Clear search"
+              onClick={() => onChange("")}
+              edge="end"
+            >
+              <ClearIcon fontSize="small" />
+            </IconButton>
+          )}
         </InputAdornment>
-      ) : undefined,
+      ),
     }}
   />
 );
