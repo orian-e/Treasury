@@ -85,13 +85,13 @@ export const SplitSelector: React.FC<SplitSelectorProps> = ({
     setPercentages(Object.fromEntries(value.map(s => [s.userId, amount > 0 ? Number(((s.amount * 100) / amount).toFixed(2)) : 0])));
     setCustomAmounts(Object.fromEntries(value.map(s => [s.userId, s.amount])));
     setTab(detectTab(value));
-    isUpdatingFromProps.current = false;
   }, [resetKey, amount]); // We don't include 'value' here to avoid feedback loops, but we use it for reset
 
   // Manual sync for splitUserIds when value changes externally
   useEffect(() => {
     const newUserIds = value.map(s => s.userId);
     if (newUserIds.length !== splitUserIds.length || !newUserIds.every((id, idx) => id === splitUserIds[idx])) {
+      isUpdatingFromProps.current = true;
       setSplitUserIds(newUserIds);
     }
   }, [value]);
@@ -101,7 +101,16 @@ export const SplitSelector: React.FC<SplitSelectorProps> = ({
 
   // Calculate splits and validation in one go
   useEffect(() => {
-    if (isUpdatingFromProps.current) return;
+    // The two effects above pull `value` into local state; this one pushes
+    // local state back up. Emitting in the same commit as a pull would send up
+    // splits derived from the ids we are replacing — the parent then pushes
+    // those back down, and the two sides ping-pong forever (the flicker seen
+    // after cancelling an edit). Skip one run; the pull always changes this
+    // effect's deps, so it re-runs immediately with the synced state.
+    if (isUpdatingFromProps.current) {
+      isUpdatingFromProps.current = false;
+      return;
+    }
 
     let newSplits: Split[] = [];
     let errorMessage: string | null = null;

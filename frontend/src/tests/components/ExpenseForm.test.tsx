@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import ExpenseForm from "../../components/ExpenseForm";
 import { seedUsers, seedGroups } from "../utils/mockData";
@@ -14,40 +14,6 @@ jest.mock('@mui/x-date-pickers', () => ({
   DatePicker: () => <input type="text" data-testid="mock-date-picker" />,
 }));
 
-// Mock SplitSelector to bypass JSDOM + MUI Select infinite loop limitations.
-// userEvent.click() interactions with MUI Select portals cause a synchronous 
-// update loop inside MUI's FormControl/InputBase context when running in Jest/JSDOM 
-// because JSDOM doesn't handle layout/focus microtasks exactly like a real browser.
-// The actual SplitSelector logic is thoroughly tested in SplitSelector.test.tsx.
-// This mock simply renders buttons to simulate valid and invalid splits being 
-// passed back up to the ExpenseForm so its validation and submission can be tested.
-jest.mock('../../components/SplitSelector', () => ({
-  SplitSelector: ({ onChange, onError }: any) => (
-    <div data-testid="mock-split-selector">
-      <button 
-        type="button" 
-        onClick={() => onChange([{ userId: '1', amount: 25 }, { userId: '2', amount: 25 }])}
-      >
-        Mock Valid 2-Way Split
-      </button>
-      <button 
-        type="button" 
-        onClick={() => onChange([{ userId: '1', amount: 200 }])}
-      >
-        Mock Valid GBP Split
-      </button>
-      <button 
-        type="button" 
-        onClick={() => {
-          if (onError) onError("Mock Validation Error");
-        }}
-      >
-        Mock Validation Error
-      </button>
-    </div>
-  )
-}));
-
 const defaultProps = {
   onAddExpense: jest.fn(),
   users: seedUsers,
@@ -59,6 +25,11 @@ const defaultProps = {
 describe("ExpenseForm - Integration Tests", () => {
   let mockOnAddExpense: jest.Mock;
 
+  // The form scrolls itself into view when an edit starts; jsdom has no layout.
+  beforeAll(() => {
+    Element.prototype.scrollIntoView = jest.fn();
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
     mockOnAddExpense = jest.fn();
@@ -68,6 +39,16 @@ describe("ExpenseForm - Integration Tests", () => {
   const fillBasicForm = async (user: any, desc: string, amount: string) => {
     await user.type(screen.getByLabelText(/description/i), desc);
     await user.type(screen.getByLabelText(/amount/i), amount);
+  };
+
+  // Drives the real SplitSelector. Splits are derived from the amount, so fill
+  // the amount first or every share comes out as 0.
+  const splitWith = async (user: any, ...names: RegExp[]) => {
+    await user.click(screen.getByLabelText(/split with/i));
+    for (const name of names) {
+      await user.click(await screen.findByRole("option", { name }));
+    }
+    await user.click(screen.getByRole("button", { name: "Done" }));
   };
 
   it("should render currency selector and default to EUR", () => {
@@ -81,10 +62,8 @@ describe("ExpenseForm - Integration Tests", () => {
     const user = userEvent.setup();
     render(<ExpenseForm {...defaultProps} />);
 
-    // Click the mock button to simulate user interaction and valid splits
-    await user.click(screen.getByRole("button", { name: "Mock Valid 2-Way Split" }));
-
-    // Now submit button should be enabled, click it
+    // Nothing is filled in, but an empty split is not itself an error, so the
+    // button is live and submitting has to be what surfaces the problems.
     const submitBtn = screen.getByRole("button", { name: /add expense/i });
     expect(submitBtn).not.toBeDisabled();
     await user.click(submitBtn);
@@ -100,8 +79,7 @@ describe("ExpenseForm - Integration Tests", () => {
 
     await fillBasicForm(user, "Internet Bill", "50");
 
-    // Simulate user selecting splits via the mock button
-    await user.click(screen.getByRole("button", { name: "Mock Valid 2-Way Split" }));
+    await splitWith(user, /Alice Martin/, /Bob Chen/);
 
     // Now submit
     await user.click(screen.getByRole("button", { name: /add expense/i }));
@@ -135,7 +113,7 @@ describe("ExpenseForm - Integration Tests", () => {
     await user.click(gbpOption);
 
     await fillBasicForm(user, "London trip prep", "200");
-    await user.click(screen.getByRole("button", { name: "Mock Valid GBP Split" }));
+    await splitWith(user, /Alice Martin/);
 
     await user.click(screen.getByRole("button", { name: /add expense/i }));
 
@@ -153,12 +131,15 @@ describe("ExpenseForm - Integration Tests", () => {
     render(<ExpenseForm {...defaultProps} />);
 
     await fillBasicForm(user, "Validation Test", "100");
+    await splitWith(user, /Alice Martin/, /Bob Chen/);
 
-    // Trigger an error directly from our mock child component
-    await user.click(screen.getByRole("button", { name: "Mock Validation Error" }));
+    // Percentage mode starts at 0% for everyone, which is a real split error.
+    await user.click(screen.getByRole("button", { name: "Percentage" }));
 
-    // The visual error should buble up and appear via the onError callback
-    expect(await screen.findByText(/Mock Validation Error/i)).toBeInTheDocument();
+    // The error should bubble up to the form via the onError callback
+    expect(
+      await screen.findByText(/Percentages must total exactly 100%/i)
+    ).toBeInTheDocument();
 
     // The form submit button should be disabled
     const submitBtn = screen.getByRole("button", { name: /add expense/i });
@@ -244,7 +225,7 @@ describe("ExpenseForm - Integration Tests", () => {
     await user.type(payerAmountInput, "50");
 
     // Set valid splits
-    await user.click(screen.getByRole("button", { name: "Mock Valid 2-Way Split" }));
+    await splitWith(user, /Alice Martin/, /Bob Chen/);
 
     // Submit
     await user.click(screen.getByRole("button", { name: /add expense/i }));
