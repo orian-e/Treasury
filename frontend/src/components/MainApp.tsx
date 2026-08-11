@@ -2,17 +2,38 @@ import React, { useState, useEffect } from "react";
 import {
   Box,
   AppBar,
+  Toolbar,
   Typography,
   Button,
   Tabs,
   Tab,
   Snackbar,
   Alert,
-  Paper,
-  useTheme,
-  useMediaQuery,
+  Avatar,
+  IconButton,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  Divider,
+  Tooltip,
+  Chip,
 } from "@mui/material";
 import ShowChartIcon from '@mui/icons-material/ShowChart';
+import GroupsIcon from '@mui/icons-material/Groups';
+import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
+import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
+import LogoutIcon from '@mui/icons-material/Logout';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+
+// Single source of truth for the primary navigation, shared by the desktop
+// header and the mobile bottom bar. Order defines the tab index used by
+// currentTab and by every setCurrentTab call in this file.
+const NAV_ITEMS = [
+  { id: "groups", label: "Groups", Icon: GroupsIcon, requiresGroup: false },
+  { id: "expenses", label: "Expenses", Icon: ReceiptLongIcon, requiresGroup: true },
+  { id: "settlements", label: "Settlements", Icon: SwapHorizIcon, requiresGroup: true },
+  { id: "totals", label: "Totals", Icon: ShowChartIcon, requiresGroup: false },
+] as const;
 import ConfirmDialog from "./ConfirmDialog";
 import ExpenseList from "./ExpenseList";
 import ExpenseForm from "./ExpenseForm";
@@ -33,8 +54,7 @@ interface MainAppProps {
 const MainApp: React.FC<MainAppProps> = ({ currentUser, onLogout }) => {
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const [accountMenuAnchor, setAccountMenuAnchor] = useState<null | HTMLElement>(null);
   const [currentTab, setCurrentTab] = React.useState(0);
   const [notification, setNotification] = useState<{
     open: boolean;
@@ -73,21 +93,29 @@ const MainApp: React.FC<MainAppProps> = ({ currentUser, onLogout }) => {
     deleteGroup,
   } = useExpenseApp();
 
+  // A tab is locked while it needs a group and none is selected. Derived from
+  // NAV_ITEMS so the guards and the nav rendering cannot drift apart.
+  const isTabLocked = (index: number) =>
+    Boolean(NAV_ITEMS[index]?.requiresGroup) && !selectedGroupId;
+
   useEffect(() => {
-    // Only redirect if trying to access Expenses (1) or Settlements (2) tabs without a selected group
-    if (!selectedGroupId && (currentTab === 1 || currentTab === 2)) {
+    // Never leave a group-dependent tab on screen after the group goes away.
+    if (isTabLocked(currentTab)) {
       setCurrentTab(0);
     }
-    // Allow Groups (0) and Totals (3) tabs without a selected group
   }, [selectedGroupId, currentTab]);
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     // Don't allow switching to Expenses or Settlements tabs if no group is selected
-    if ((newValue === 1 || newValue === 2) && !selectedGroupId) {
+    if (isTabLocked(newValue)) {
       return;
     }
     setCurrentTab(newValue);
   };
+
+  // Short enough to keep in the header at every width. currentUser may be an
+  // email, which has no whitespace and so passes through unchanged.
+  const firstName = currentUser.trim().split(/\s+/)[0];
 
   const currentUserObject = users.find(
     (u) => u.name === currentUser || u.email === currentUser
@@ -128,179 +156,190 @@ const MainApp: React.FC<MainAppProps> = ({ currentUser, onLogout }) => {
           display: "flex",
           flexDirection: "column",
           minHeight: "100vh",
-          overflow: "hidden",
+          // Clear the bottom-docked nav on mobile.
+          pb: { xs: "calc(56px + env(safe-area-inset-bottom))", md: 0 },
         }}
       >
-        <AppBar position="static" sx={{ bgcolor: "primary.main" }}>
-          <Box
+        <AppBar position="sticky" sx={{ bgcolor: "primary.main" }}>
+          <Toolbar
             sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              p: 1.25,
+              minHeight: { xs: 56, md: 64 },
+              height: { xs: 56, md: 64 },
+              gap: 1,
             }}
           >
             <Typography
-              variant="h4"
+              variant="h5"
               component="h1"
-              sx={{
-                fontWeight: 600,
-                fontSize: { xs: '1.25rem', sm: '2.125rem' },
-                color: "white",
-                position: "relative",
-                "&::after": {
-                  content: '""',
-                  position: "absolute",
-                  bottom: -8,
-                  left: 0,
-                  width: "100%",
-                  height: "3px",
-                  background:
-                    "linear-gradient(90deg, transparent, white, transparent)",
-                },
-              }}
+              sx={{ fontWeight: 600, color: "white", whiteSpace: "nowrap" }}
             >
               Treasury
             </Typography>
-            <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 1, sm: 2 } }}>
-              <Typography variant={isMobile ? "body2" : "body1"}>
-                {isMobile ? currentUser : `Welcome, ${currentUser}`}
-              </Typography>
-              <Button
-                color="error"
-                onClick={() => setLogoutDialogOpen(true)}
-                variant="outlined"
-                size="small"
-                sx={{ bgcolor: "background.paper" }}
-              >
-                Logout
-              </Button>
-            </Box>
-          </Box>
-        </AppBar>
 
-        {/* Main Content */}
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-          {/* Tabs */}
-          <Paper 
-            elevation={0}
-            sx={{
-              position: 'sticky',
-              top: 0,
-              zIndex: 10,
-              borderRadius: 0,
-              borderBottom: '1px solid',
-              borderColor: 'divider',
-              bgcolor: 'background.paper',
-              px: { xs: 0, sm: 2 },
-            }}
-          >
+            {/* Primary navigation. One set of markup: inline in the toolbar on
+                desktop, docked to the bottom of the viewport on mobile. */}
             <Tabs
+              component="nav"
               value={currentTab}
               onChange={handleTabChange}
-              variant="scrollable"
-              scrollButtons="auto"
-              allowScrollButtonsMobile
+              textColor="inherit"
               sx={{
-                minHeight: { xs: 48, sm: 64 },
-                overflowX: 'auto',
-                '& .MuiTabs-flexContainer': {
-                  flexWrap: 'nowrap',
-                  minWidth: '100%',
-                  width: 'max-content',
-                  margin: '0 auto',
-                  justifyContent: 'center',
-                  '@media (max-width: 900px)': {
-                    justifyContent: 'flex-start',
-                  },
+                minHeight: 0,
+                minWidth: 0,
+                ml: { xs: 0, md: 3 },
+                position: { xs: "fixed", md: "static" },
+                bottom: { xs: 0, md: "auto" },
+                left: { xs: 0, md: "auto" },
+                right: { xs: 0, md: "auto" },
+                zIndex: { xs: "appBar", md: "auto" },
+                bgcolor: { xs: "background.paper", md: "transparent" },
+                borderTop: { xs: 1, md: 0 },
+                borderColor: "divider",
+                pb: { xs: "env(safe-area-inset-bottom)", md: 0 },
+                "& .MuiTabs-flexContainer": {
+                  display: { xs: "grid", md: "flex" },
+                  gridTemplateColumns: { xs: "repeat(4, 1fr)", md: "none" },
                 },
-                '& .MuiTabs-scroller': {
-                  overflow: 'auto !important',
-                  WebkitOverflowScrolling: 'touch',
-                },
-                '& .MuiTabs-indicator': {
-                  height: 3,
-                  borderRadius: '3px 3px 0 0',
-                },
-                '& .MuiTab-root': {
-                  minHeight: { xs: 48, sm: 64 },
-                  minWidth: 'auto',
-                  padding: { xs: '8px 10px', sm: '12px 16px' },
-                  fontSize: { xs: '0.8rem', sm: '1rem' },
+                // Selection is shown as a pill (desktop) / tinted item (mobile).
+                "& .MuiTabs-indicator": { display: "none" },
+                "& .MuiTab-root": {
+                  minHeight: { xs: 56, md: 44 },
+                  minWidth: 0,
+                  // Padding lives on the inner span so it, and not a dead zone
+                  // around it, carries the hover target for the lock Tooltip.
+                  p: 0,
+                  fontSize: { xs: "0.65rem", md: "0.9rem" },
                   fontWeight: 600,
-                  textTransform: 'none',
-                  letterSpacing: '0.5px',
-                  '& .MuiSvgIcon-root': {
-                    marginBottom: '4px',
+                  textTransform: "none",
+                  borderRadius: { xs: 0, md: 2 },
+                  color: { xs: "text.secondary", md: "rgba(255,255,255,0.9)" },
+                  "&.Mui-selected": {
+                    color: { xs: "primary.main", md: "common.white" },
+                    bgcolor: { xs: "transparent", md: "rgba(255,255,255,0.18)" },
                   },
-                  '&.Mui-selected': {
-                    color: 'primary.main',
+                  // Locked: needs a group before it can be opened. Dimmed hard
+                  // against the brighter available items above — the lock icon
+                  // is what says "unavailable", the opacity only reinforces it.
+                  '&[aria-disabled="true"]': {
+                    opacity: { xs: 0.38, md: 0.28 },
+                    fontWeight: 400,
+                    cursor: "not-allowed",
+                    "&:hover": { bgcolor: "transparent" },
                   },
                 },
               }}
             >
-              <Tab
-                label={
-                  <Box
-                    component="span"
-                    sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
-                  >
-                    <Box component="span" sx={{ fontSize: "1rem" }}>
-                      🏢
-                    </Box>
-                    <Box component="span">Groups</Box>
-                  </Box>
-                }
-              />
-              <Tab
-                disabled={!selectedGroupId}
-                label={
-                  <Box
-                    component="span"
-                    sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
-                  >
-                    <Box component="span" sx={{ fontSize: "1rem" }}>
-                      💰
-                    </Box>
-                    <Box component="span">Expenses</Box>
-                  </Box>
-                }
-              />
-              <Tab
-                disabled={!selectedGroupId}
-                label={
-                  <Box
-                    component="span"
-                    sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
-                  >
-                    <Box component="span" sx={{ fontSize: "1rem" }}>
-                      💸
-                    </Box>
-                    <Box component="span">Settlements</Box>
-                  </Box>
-                }
-              />
-              <Tab
-                label={
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1,
-                    }}
-                  >
-                    <ShowChartIcon fontSize="small" />
-                    <Box component="span">Totals</Box>
-                  </Box>
-                }
-                sx={{
-                  minHeight: 'auto',
-                  py: 1.5,
-                }}
-              />
+              {NAV_ITEMS.map(({ id, label, Icon }, index) => {
+                const locked = isTabLocked(index);
+                return (
+                  <Tab
+                    key={id}
+                    value={index}
+                    // Not the native `disabled` prop: a disabled button swallows
+                    // mouse events, so the Tooltip explaining *why* it is locked
+                    // would never fire. handleTabChange still refuses the click.
+                    aria-disabled={locked || undefined}
+                    // Pinned because the Tooltip puts its own aria-label on the
+                    // child span, which would otherwise become the tab's name.
+                    aria-label={locked ? `${label} — select a group first` : label}
+                    disableRipple={locked}
+                    label={
+                      <Tooltip
+                        title={locked ? "Select a group first" : ""}
+                        arrow
+                        disableInteractive
+                      >
+                        <Box
+                          component="span"
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            width: "100%",
+                            height: "100%",
+                            flexDirection: { xs: "column", md: "row" },
+                            gap: { xs: 0.25, md: 1 },
+                            px: { xs: 0.5, md: 2 },
+                            py: { xs: 1, md: 0.75 },
+                          }}
+                        >
+                          {locked ? (
+                            <LockOutlinedIcon fontSize="small" />
+                          ) : (
+                            <Icon fontSize="small" />
+                          )}
+                          <Box component="span">{label}</Box>
+                        </Box>
+                      </Tooltip>
+                    }
+                  />
+                );
+              })}
             </Tabs>
-          </Paper>
 
+            <Box
+              sx={{ ml: "auto", display: "flex", alignItems: "center", gap: 1 }}
+            >
+              <Typography
+                variant="body2"
+                noWrap
+                data-testid="current-user"
+                sx={{ maxWidth: { xs: 100, md: 160 } }}
+              >
+                {firstName}
+              </Typography>
+              <IconButton
+                aria-label="Account menu"
+                aria-haspopup="true"
+                aria-expanded={accountMenuAnchor ? "true" : undefined}
+                onClick={(event) => setAccountMenuAnchor(event.currentTarget)}
+                sx={{ p: 0.5 }}
+              >
+                <Avatar
+                  sx={{
+                    width: 32,
+                    height: 32,
+                    bgcolor: "background.paper",
+                    color: "primary.main",
+                    fontSize: "0.9rem",
+                    fontWeight: 600,
+                  }}
+                >
+                  {currentUser.trim().charAt(0).toUpperCase()}
+                </Avatar>
+              </IconButton>
+            </Box>
+          </Toolbar>
+        </AppBar>
+
+        <Menu
+          anchorEl={accountMenuAnchor}
+          open={Boolean(accountMenuAnchor)}
+          onClose={() => setAccountMenuAnchor(null)}
+          anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+          transformOrigin={{ vertical: "top", horizontal: "right" }}
+        >
+          <MenuItem disabled sx={{ opacity: "1 !important" }}>
+            <Typography variant="body2" color="text.secondary">
+              Signed in as {currentUser}
+            </Typography>
+          </MenuItem>
+          <Divider />
+          <MenuItem
+            onClick={() => {
+              setAccountMenuAnchor(null);
+              setLogoutDialogOpen(true);
+            }}
+          >
+            <ListItemIcon>
+              <LogoutIcon fontSize="small" />
+            </ListItemIcon>
+            Logout
+          </MenuItem>
+        </Menu>
+
+        {/* Main Content */}
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           {/* Tab content container */}
           <Box sx={{
             maxWidth: 1200,
@@ -352,6 +391,23 @@ const MainApp: React.FC<MainAppProps> = ({ currentUser, onLogout }) => {
           {currentTab === 1 && (
             <Box>
               {selectedGroupId ? (
+                <>
+                {/* The nav says what you are doing; this says what you are
+                    doing it to. Totals is global, so it has no equivalent. */}
+                <Box sx={{ mb: 2, display: "flex", alignItems: "center", gap: 1 }}>
+                  <Typography variant="h5" component="h2" sx={{ fontWeight: 600 }}>
+                    Expenses
+                  </Typography>
+                  <Chip
+                    icon={<GroupsIcon />}
+                    label={
+                      groups?.find((g) => g.id === selectedGroupId)?.name || "Group"
+                    }
+                    size="small"
+                    onClick={() => setCurrentTab(0)}
+                    aria-label="Change group"
+                  />
+                </Box>
                 <Box
                   sx={{
                     display: "flex",
@@ -438,6 +494,7 @@ const MainApp: React.FC<MainAppProps> = ({ currentUser, onLogout }) => {
                     </Box>
                   </Box>
                 </Box>
+                </>
               ) : (
                 <Box
                   sx={{

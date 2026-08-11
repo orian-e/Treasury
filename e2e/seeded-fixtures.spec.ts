@@ -14,7 +14,11 @@ async function login(page: Page, email: string, displayName: string) {
   await page.getByLabel(/email/i).fill(email);
   await page.getByLabel(/password/i).fill(PASSWORD);
   await page.getByRole('button', { name: /login/i }).click();
-  await expect(page.getByText(displayName)).toBeVisible({ timeout: 15000 });
+  // The header shows the first name only; the full name lives in the account menu.
+  await expect(page.getByTestId('current-user')).toHaveText(
+    displayName.split(' ')[0],
+    { timeout: 15000 }
+  );
 }
 
 // Group names carry emoji in the fixtures; getByText matches substrings, so the

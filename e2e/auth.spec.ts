@@ -26,7 +26,11 @@ test.describe('Authentication Flow', () => {
 
     // 5. Verify successful login by checking for Dashboard elements
     // For example, looking for a text that says "Welcome, User!" or a "Create Group" button
-    await expect(page.getByText(testUser.name)).toBeVisible({ timeout: 10000 });
+    // The header shows the first name only; the full name lives in the account menu.
+    await expect(page.getByTestId('current-user')).toHaveText(
+      testUser.name.split(' ')[0],
+      { timeout: 10000 }
+    );
     await expect(page.getByRole('button', { name: /create.*group/i })).toBeVisible();
   });
 
@@ -55,7 +59,11 @@ test.describe('Authentication Flow', () => {
     await page.getByRole('button', { name: /login/i }).click();
 
     // 2. Wait for dashboard
-    await expect(page.getByText(testUser.name)).toBeVisible({ timeout: 10000 });
+    // The header shows the first name only; the full name lives in the account menu.
+    await expect(page.getByTestId('current-user')).toHaveText(
+      testUser.name.split(' ')[0],
+      { timeout: 10000 }
+    );
 
     // 3. Remove auth token from localStorage
     await page.evaluate(() => localStorage.removeItem('authToken'));
@@ -65,6 +73,6 @@ test.describe('Authentication Flow', () => {
 
     // 5. Verify redirect back to Login screen
     await expect(page.getByRole('heading', { name: 'Login' })).toBeVisible();
-    await expect(page.getByText(testUser.name)).toBeHidden();
+    await expect(page.getByTestId('current-user')).toBeHidden();
   });
 });

@@ -20,7 +20,10 @@ test.describe('Group, Expense, and Settlement Flow', () => {
     await page.getByRole('button', { name: /register/i }).click();
 
     // 2. Dashboard - Create Group
-    await expect(page.getByText(testUser.name)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId('current-user')).toHaveText(
+      testUser.name.split(' ')[0],
+      { timeout: 10000 }
+    );
     
     // Create new group
     await page.getByRole('button', { name: /create group/i }).click();
@@ -121,7 +124,10 @@ test.describe('Group, Expense, and Settlement Flow', () => {
     await page.getByRole('button', { name: /register/i }).click();
 
     // 2. Dashboard - Create Group
-    await expect(page.getByText(errorUser.name)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId('current-user')).toHaveText(
+      errorUser.name.split(' ')[0],
+      { timeout: 10000 }
+    );
     await page.getByRole('button', { name: /create group/i }).click();
     
     // The button should be disabled when required fields are empty

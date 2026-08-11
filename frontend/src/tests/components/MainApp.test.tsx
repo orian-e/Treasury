@@ -64,8 +64,16 @@ describe('MainApp - Integration Tests', () => {
     render(<MainApp {...defaultProps} />);
 
     const expensesTab = screen.getByRole('tab', { name: /expenses/i });
-    // MUI tabs either get disabled attribute or Mui-disabled class. Both work with native checking.
-    expect(expensesTab).toHaveAttribute('disabled');
+    // aria-disabled rather than the native attribute: a disabled button swallows
+    // mouse events, which would suppress the "Select a group first" tooltip.
+    expect(expensesTab).toHaveAttribute('aria-disabled', 'true');
+
+    // The tab stays inert: clicking it must not open the Expenses view.
+    await userEvent.click(expensesTab);
+    expect(screen.getByRole('tab', { name: /groups/i })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    );
   });
 
   it('should show the requested group content when a group is selected', async () => {
@@ -125,7 +133,9 @@ describe('MainApp - Integration Tests', () => {
     render(<MainApp {...defaultProps} onLogout={mockOnLogout} />);
 
     const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: /logout/i }));
+    // Logout now lives behind the account menu in the header.
+    await user.click(screen.getByRole('button', { name: /account menu/i }));
+    await user.click(await screen.findByRole('menuitem', { name: /logout/i }));
 
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText(/are you sure you want to log out/i)).toBeInTheDocument();
