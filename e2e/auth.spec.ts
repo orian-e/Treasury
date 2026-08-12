@@ -14,7 +14,7 @@ test.describe('Authentication Flow', () => {
     await page.goto('/');
 
     // 2. Click the register tab/link (adjust selector based on your UI)
-    await page.getByRole('button', { name: /need an account\? register/i }).click();
+    await page.getByRole('button', { name: /new here\? create an account/i }).click();
 
     // 3. Fill out the registration form
     await page.getByLabel(/name/i).fill(testUser.name);
@@ -22,7 +22,7 @@ test.describe('Authentication Flow', () => {
     await page.getByLabel(/password/i).fill(testUser.password);
 
     // 4. Submit the form
-    await page.getByRole('button', { name: /register/i }).click();
+    await page.getByRole('button', { name: /create account/i }).click();
 
     // 5. Verify successful login by checking for Dashboard elements
     // For example, looking for a text that says "Welcome, User!" or a "Create Group" button
@@ -45,7 +45,7 @@ test.describe('Authentication Flow', () => {
     await page.getByLabel(/password/i).fill('wrongpassword');
 
     // 3. Submit the form
-    await page.getByRole('button', { name: /login/i }).click();
+    await page.getByRole('button', { name: /sign in/i }).click();
 
     // 4. Verify error message appears
     await expect(page.getByText(/invalid email or password/i)).toBeVisible();
@@ -56,7 +56,7 @@ test.describe('Authentication Flow', () => {
     await page.goto('/');
     await page.getByLabel(/email/i).fill(testUser.email);
     await page.getByLabel(/password/i).fill(testUser.password);
-    await page.getByRole('button', { name: /login/i }).click();
+    await page.getByRole('button', { name: /sign in/i }).click();
 
     // 2. Wait for dashboard
     // The header shows the first name only; the full name lives in the account menu.
@@ -71,8 +71,8 @@ test.describe('Authentication Flow', () => {
     // 4. Reload page
     await page.reload();
 
-    // 5. Verify redirect back to Login screen
-    await expect(page.getByRole('heading', { name: 'Login' })).toBeVisible();
+    // 5. Verify redirect back to login screen
+    await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
     await expect(page.getByTestId('current-user')).toBeHidden();
   });
 });

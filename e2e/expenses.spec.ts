@@ -13,11 +13,11 @@ test.describe('Group, Expense, and Settlement Flow', () => {
   test('should allow user to create a group, add guest, add expense, and see settlements', async ({ page }) => {
     // 1. Register User A
     await page.goto('/');
-    await page.getByRole('button', { name: /need an account\? register/i }).click();
+    await page.getByRole('button', { name: /new here\? create an account/i }).click();
     await page.getByLabel(/name/i).fill(testUser.name);
     await page.getByLabel(/email/i).fill(testUser.email);
     await page.getByLabel(/password/i).fill(testUser.password);
-    await page.getByRole('button', { name: /register/i }).click();
+    await page.getByRole('button', { name: /create account/i }).click();
 
     // 2. Dashboard - Create Group
     await expect(page.getByTestId('current-user')).toHaveText(
@@ -117,11 +117,11 @@ test.describe('Group, Expense, and Settlement Flow', () => {
 
     // 1. Register User
     await page.goto('/');
-    await page.getByRole('button', { name: /need an account\? register/i }).click();
+    await page.getByRole('button', { name: /new here\? create an account/i }).click();
     await page.getByLabel(/name/i).fill(errorUser.name);
     await page.getByLabel(/email/i).fill(errorUser.email);
     await page.getByLabel(/password/i).fill(errorUser.password);
-    await page.getByRole('button', { name: /register/i }).click();
+    await page.getByRole('button', { name: /create account/i }).click();
 
     // 2. Dashboard - Create Group
     await expect(page.getByTestId('current-user')).toHaveText(

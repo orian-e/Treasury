@@ -13,7 +13,7 @@ async function login(page: Page, email: string, displayName: string) {
   await page.goto('/');
   await page.getByLabel(/email/i).fill(email);
   await page.getByLabel(/password/i).fill(PASSWORD);
-  await page.getByRole('button', { name: /login/i }).click();
+  await page.getByRole('button', { name: /sign in/i }).click();
   // The header shows the first name only; the full name lives in the account menu.
   await expect(page.getByTestId('current-user')).toHaveText(
     displayName.split(' ')[0],
