@@ -154,6 +154,9 @@ export const ExpensesScreen: React.FC<{ step: DemoStep }> = ({ step }) => {
               display: "grid",
               gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
               gap: 1.25,
+              // Give the floating Amount/Paid by labels clear air below the
+              // Description outline without increasing the preview frame.
+              mt: 0.75,
             }}
           >
             <TextField
