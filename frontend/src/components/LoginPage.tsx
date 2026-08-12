@@ -3,7 +3,7 @@ import { Box, TextField, Button, Typography, Alert } from "@mui/material";
 
 interface LoginPageProps {
   onLogin: (email: string, password: string) => Promise<void>;
-  onRegister: (name: string, email: string, password: string) => Promise<void>; // ← Add this
+  onRegister: (name: string, email: string, password: string) => Promise<void>;
 }
 
 const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onRegister }) => {
@@ -18,32 +18,72 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onRegister }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    setLoading(true);
+
+    const normalizedEmail = email.trim().toLowerCase();
 
     // Email format validation
-    if (!emailRegex.test(email.trim())) {
+    if (!emailRegex.test(normalizedEmail)) {
       setError("Please enter a valid email address.");
-      setLoading(false);
       return;
     }
 
+    setLoading(true);
+
     try {
       if (isLogin) {
-        await onLogin(email.trim().toLowerCase(), password);
+        await onLogin(normalizedEmail, password);
       } else {
-        await onRegister(name, email.trim().toLowerCase(), password);
+        await onRegister(
+          name.trim(),
+          normalizedEmail,
+          password
+        );
       }
-    } catch (err: any) {
-      setError(err.message || "Authentication failed");
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Authentication failed"
+      );
     } finally {
       setLoading(false);
     }
   };
 
+  const handleModeChange = () => {
+    setIsLogin((current) => !current);
+    setError("");
+  };
+
   return (
-    <Box sx={{ maxWidth: 400, mx: "auto", mt: 8, p: 3 }}>
-      <Typography variant="h4" align="center" gutterBottom>
-        {isLogin ? "Login" : "Register"}
+    <Box
+      sx={{
+        width: "100%",
+        maxWidth: 400,
+        bgcolor: "background.paper",
+        borderRadius: 2,
+        boxShadow: 1,
+        p: { xs: 3, sm: 4 },
+      }}
+    >
+      <Typography
+        variant="h5"
+        component="h2"
+        align="center"
+        sx={{ fontWeight: 600 }}
+      >
+        {isLogin ? "Welcome back" : "Create your account"}
+      </Typography>
+
+      <Typography
+        variant="body2"
+        color="text.secondary"
+        align="center"
+        sx={{ mt: 0.5, mb: 3 }}
+      >
+        {isLogin
+          ? "Sign in to your Treasury account"
+          : "Start sharing expenses in less than a minute"}
       </Typography>
 
       {error && (
@@ -61,6 +101,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onRegister }) => {
             onChange={(e) => setName(e.target.value)}
             margin="normal"
             required
+            autoComplete="name"
           />
         )}
 
@@ -72,6 +113,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onRegister }) => {
           onChange={(e) => setEmail(e.target.value)}
           margin="normal"
           required
+          autoComplete="email"
         />
 
         <TextField
@@ -82,6 +124,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onRegister }) => {
           onChange={(e) => setPassword(e.target.value)}
           margin="normal"
           required
+          autoComplete={
+            isLogin ? "current-password" : "new-password"
+          }
         />
 
         <Button
@@ -91,16 +136,29 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onRegister }) => {
           disabled={loading}
           sx={{ mt: 3 }}
         >
-          {loading ? "Loading..." : isLogin ? "Login" : "Register"}
+          {loading
+            ? isLogin
+              ? "Signing in..."
+              : "Creating account..."
+            : isLogin
+              ? "Sign in"
+              : "Create account"}
         </Button>
 
         <Button
+          type="button"
           fullWidth
           variant="text"
-          onClick={() => setIsLogin(!isLogin)}
-          sx={{ mt: 1 }}
+          onClick={handleModeChange}
+          disabled={loading}
+          sx={{
+            mt: 1,
+            textTransform: "none",
+          }}
         >
-          {isLogin ? "Need an account? Register" : "Have an account? Login"}
+          {isLogin
+            ? "New here? Create an account"
+            : "Already have an account? Sign in"}
         </Button>
       </form>
     </Box>

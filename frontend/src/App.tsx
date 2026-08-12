@@ -3,7 +3,7 @@ import { ThemeProvider } from "@mui/material/styles";
 import { Box, CircularProgress, CssBaseline, Typography } from "@mui/material";
 import { theme } from "./styles/theme";
 import "./styles/App.scss";
-import LoginPage from "./components/LoginPage";
+import HomePage from "./pages/HomePage";
 import MainApp from "./components/MainApp";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { useAuth } from "./hooks/useAuth";
@@ -46,10 +46,7 @@ const App: React.FC = () => {
           )}
 
           {!isAuthLoading && !isLoggedIn && (
-            <LoginPage
-              onLogin={handleLogin}
-              onRegister={handleRegister} // ← Add this
-            />
+            <HomePage onLogin={handleLogin} onRegister={handleRegister} />
           )}
 
           {!isAuthLoading && isLoggedIn && currentUser && (
