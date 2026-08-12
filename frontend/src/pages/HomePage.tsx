@@ -5,6 +5,7 @@ import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import ShowChartIcon from "@mui/icons-material/ShowChart";
 import LoginPage from "../components/LoginPage";
+import TreasuryDemo from "../components/TreasuryDemo/TreasuryDemo";
 
 const FEATURES = [
   {
@@ -132,6 +133,16 @@ const HomePage: React.FC<HomePageProps> = ({
             </Box>
           ))}
         </Stack>
+
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: { xs: "center", md: "flex-start" },
+            mt: { xs: 3, sm: 4 },
+          }}
+        >
+          <TreasuryDemo />
+        </Box>
       </Box>
 
       {/* Sign in / registration */}
