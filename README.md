@@ -163,7 +163,7 @@ This repository is intended to be reviewed as source code and through recorded d
 
 Real environment files are excluded from Git. Use the `.env.example` files as templates only, and never commit local `.env`, `.env.*`, database credentials, JWT secrets, or generated reports.
 
-This repository is published as a single-commit snapshot of the codebase rather than the full development history.
+This codebase was published as a streamlined release to establish a fresh baseline for future features and community maintenance.
 
 ---
 
