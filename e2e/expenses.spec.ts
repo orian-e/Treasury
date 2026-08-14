@@ -82,8 +82,17 @@ test.describe('Group, Expense, and Settlement Flow', () => {
     await expect(page.getByText(testUser.name).first()).toBeVisible();
     await expect(page.getByText('€25.00')).toBeVisible();
 
-    // 6. Edit the Expense 
+    // 6. Cancel an edit without leaking the expense into the add form
     await page.getByRole('tab', { name: /expenses/i }).click();
+    await page.getByLabel('edit').first().click();
+    await expect(page.getByText('Edit Expense')).toBeVisible();
+    await page.getByLabel(/description/i).fill('Must not be saved');
+    await page.getByRole('button', { name: 'Cancel' }).click();
+    await expect(page.getByRole('heading', { name: 'Add Expense' })).toBeVisible();
+    await expect(page.getByLabel(/description/i)).toHaveValue('');
+    await expect(page.getByText('Must not be saved')).not.toBeVisible();
+
+    // 7. Edit and update the Expense
     await page.getByLabel('edit').first().click();
     await expect(page.getByText('Edit Expense')).toBeVisible();
     
@@ -100,7 +109,7 @@ test.describe('Group, Expense, and Settlement Flow', () => {
 
     await expect(page.getByText('Edited Dinner')).toBeVisible();
 
-    // 7. Check Settlements Tab Again
+    // 8. Check Settlements Tab Again
     await page.getByRole('tab', { name: /settlements/i }).click();
     
     // 100 EUR split between 2 people -> Guest B owes 50 EUR

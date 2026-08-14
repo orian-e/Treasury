@@ -206,6 +206,39 @@ describe("ExpenseForm - Integration Tests", () => {
     expect(screen.getByLabelText(/amount/i)).toHaveValue(75.5);
   });
 
+  it("should submit an edited expense without changing its split data", async () => {
+    const user = userEvent.setup();
+    const onEditExpense = jest.fn();
+    const editingExpense = {
+      id: "e_edit",
+      description: "Groceries",
+      amount: 75.5,
+      currency: "GBP",
+      date: "2025-06-15",
+      payerId: "u1",
+      payers: [],
+      splits: [
+        { userId: "u1", amount: 37.75 },
+        { userId: "u2", amount: 37.75 },
+      ],
+      groupId: "g1",
+    };
+
+    render(
+      <ExpenseForm
+        {...defaultProps}
+        editingExpense={editingExpense}
+        onEditExpense={onEditExpense}
+        onCancelEdit={jest.fn()}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: /update expense/i }));
+
+    expect(onEditExpense).toHaveBeenCalledTimes(1);
+    expect(onEditExpense).toHaveBeenCalledWith(editingExpense);
+  });
+
   it("should validate that multiple payers' amounts equal the total expense amount", async () => {
     const user = userEvent.setup();
     render(<ExpenseForm {...defaultProps} />);

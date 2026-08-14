@@ -49,6 +49,32 @@ const EditHarness: React.FC = () => {
   );
 };
 
+const RepeatedEditHarness: React.FC = () => {
+  const [editingExpense, setEditingExpense] = React.useState<Expense | null>(
+    editedExpense
+  );
+
+  return (
+    <>
+      {!editingExpense && (
+        <button onClick={() => setEditingExpense(editedExpense)}>
+          Start edit
+        </button>
+      )}
+      <ExpenseForm
+        onAddExpense={jest.fn()}
+        onEditExpense={jest.fn()}
+        onCancelEdit={() => setEditingExpense(null)}
+        editingExpense={editingExpense}
+        users={seedUsers}
+        groups={seedGroups}
+        selectedGroupId="g1"
+        onGroupChange={jest.fn()}
+      />
+    </>
+  );
+};
+
 describe("ExpenseForm cancelling an edit", () => {
   it("empties the form instead of keeping the edited expense", async () => {
     const user = userEvent.setup();
@@ -77,6 +103,34 @@ describe("ExpenseForm cancelling an edit", () => {
     try {
       render(<EditHarness />);
       await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+      const loopWarnings = errorSpy.mock.calls.filter((args) =>
+        String(args[0]).includes("Maximum update depth exceeded")
+      );
+      expect(loopWarnings).toHaveLength(0);
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  it("stays settled across repeated edit and cancel transitions", async () => {
+    const errorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    const user = userEvent.setup();
+
+    try {
+      render(<RepeatedEditHarness />);
+
+      for (let cycle = 0; cycle < 3; cycle += 1) {
+        expect(screen.getByLabelText(/description/i)).toHaveValue(
+          editedExpense.description
+        );
+        await user.click(screen.getByRole("button", { name: "Cancel" }));
+        expect(screen.getByLabelText(/description/i)).toHaveValue("");
+
+        if (cycle < 2) {
+          await user.click(screen.getByRole("button", { name: "Start edit" }));
+        }
+      }
 
       const loopWarnings = errorSpy.mock.calls.filter((args) =>
         String(args[0]).includes("Maximum update depth exceeded")
