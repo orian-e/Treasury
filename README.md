@@ -118,6 +118,21 @@ the scripts above handles it.
 These same commands run in CI on every push:
 [`.github/workflows/tests.yml`](.github/workflows/tests.yml).
 
+### Frontend performance profiling
+
+With the frontend running, capture comparable Chromium main-thread, heap,
+DOM, request, and console metrics for the animated and reduced-motion
+homepages:
+
+```bash
+npm run profile:frontend
+```
+
+The command defaults to `http://localhost:3000` and a 15-second sample.
+Override those with `TREASURY_PROFILE_URL` and
+`TREASURY_PROFILE_DURATION_MS`; set `CHROMIUM_EXECUTABLE_PATH` when the
+Playwright-managed browser is not installed.
+
 <details>
 <summary>Running without Docker</summary>
 
