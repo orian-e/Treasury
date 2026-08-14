@@ -8,7 +8,6 @@ import {
   Button,
   TextField,
   Fade,
-  Collapse,
   Grow,
 } from "@mui/material";
 import GroupsIcon from "@mui/icons-material/Groups";
@@ -84,46 +83,32 @@ export const ExpensesScreen: React.FC<{ step: DemoStep }> = ({ step }) => {
   const showForm = step === "expenseForm";
   const showNewExpense = step === "expenseSaved";
 
-  // Type the three values in the same order a person would fill the form.
-  // This state is local to the decorative form and is discarded as soon as
-  // the demo advances, so it cannot leak into the real expense workflow.
-  const [typedCharacters, setTypedCharacters] = useState(0);
+  // Reveal the three values in the same order a person would fill the form.
+  // Three coarse updates preserve the story without re-rendering for every
+  // character throughout every loop.
+  const [filledFields, setFilledFields] = useState(0);
   const typedValues = [
     DEMO_NEW_EXPENSE.label,
     DEMO_NEW_EXPENSE.amount,
     DEMO_NEW_EXPENSE.paidBy,
   ];
-  const totalCharacters = typedValues.reduce((total, value) => total + value.length, 0);
 
   useEffect(() => {
     if (!showForm) {
-      setTypedCharacters(0);
+      setFilledFields(0);
       return undefined;
     }
 
-    const timer = setInterval(() => {
-      setTypedCharacters((current) => {
-        if (current >= totalCharacters) {
-          clearInterval(timer);
-          return current;
-        }
-        return current + 1;
-      });
-    }, 65);
-
-    return () => clearInterval(timer);
-  }, [showForm, totalCharacters]);
-
-  const typedValue = (valueIndex: number) => {
-    const precedingCharacters = typedValues
-      .slice(0, valueIndex)
-      .reduce((total, value) => total + value.length, 0);
-    return typedValues[valueIndex].slice(
-      0,
-      Math.max(0, typedCharacters - precedingCharacters),
+    const timers = [350, 700, 1050].map((delay, index) =>
+      setTimeout(() => setFilledFields(index + 1), delay),
     );
-  };
-  const expenseReady = typedCharacters >= totalCharacters;
+
+    return () => timers.forEach(clearTimeout);
+  }, [showForm]);
+
+  const typedValue = (valueIndex: number) =>
+    filledFields > valueIndex ? typedValues[valueIndex] : "";
+  const expenseReady = filledFields === typedValues.length;
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
@@ -139,8 +124,9 @@ export const ExpensesScreen: React.FC<{ step: DemoStep }> = ({ step }) => {
         />
       </Box>
 
-      <Collapse in={showForm} unmountOnExit>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75, mb: 0.5 }}>
+      {showForm && (
+        <Fade in appear timeout={300}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75, mb: 0.5 }}>
           <TextField
             label="Description"
             value={typedValue(0)}
@@ -194,8 +180,9 @@ export const ExpensesScreen: React.FC<{ step: DemoStep }> = ({ step }) => {
           >
             Add Expense
           </Button>
-        </Box>
-      </Collapse>
+          </Box>
+        </Fade>
+      )}
 
       <Grow in={showNewExpense} unmountOnExit>
         <Box

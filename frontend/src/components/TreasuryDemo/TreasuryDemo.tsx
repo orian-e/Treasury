@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Box, Fade, Typography, useMediaQuery } from "@mui/material";
 import GroupsIcon from "@mui/icons-material/Groups";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
@@ -38,6 +38,7 @@ const REDUCED_MOTION_STEP: DemoStep = "expenses";
 // other step is shorter and centers within the leftover space via
 // justifyContent below.
 const PREVIEW_HEIGHT = 215;
+const MAX_LOOPS_PER_VISIBLE_SESSION = 5;
 
 const renderScreen = (step: DemoStep) => {
   switch (step) {
@@ -62,23 +63,84 @@ const renderScreen = (step: DemoStep) => {
 // state, no API calls. aria-hidden below keeps it out of the accessibility
 // tree so it can never collide with e2e getByRole locators.
 const TreasuryDemo: React.FC = () => {
+  const rootRef = useRef<HTMLDivElement>(null);
   const prefersReducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
   const [stepIndex, setStepIndex] = useState(0);
+  const [completedLoops, setCompletedLoops] = useState(0);
+  const [sessionComplete, setSessionComplete] = useState(false);
+  const [isDocumentVisible, setIsDocumentVisible] = useState(
+    () => typeof document === "undefined" || document.visibilityState !== "hidden",
+  );
+  const [isInViewport, setIsInViewport] = useState(true);
+  const canAnimate =
+    !prefersReducedMotion && isDocumentVisible && isInViewport;
   const step = prefersReducedMotion
     ? REDUCED_MOTION_STEP
     : STEP_SEQUENCE[stepIndex];
 
   useEffect(() => {
-    if (prefersReducedMotion) {
+    const handleVisibilityChange = () => {
+      setIsDocumentVisible(document.visibilityState !== "hidden");
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!rootRef.current || typeof IntersectionObserver === "undefined") {
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsInViewport(entry.isIntersecting),
+      { threshold: 0.1 },
+    );
+    observer.observe(rootRef.current);
+
+    return () => observer.disconnect();
+  }, []);
+
+  // Leaving the page or scrolling the preview away ends the current session.
+  // A return always starts the story from the beginning with a fresh budget.
+  useEffect(() => {
+    if (canAnimate) {
+      return undefined;
+    }
+
+    setStepIndex(0);
+    setCompletedLoops(0);
+    setSessionComplete(false);
+    return undefined;
+  }, [canAnimate]);
+
+  useEffect(() => {
+    if (!canAnimate || sessionComplete) {
       return undefined;
     }
 
     const timer = setTimeout(() => {
-      setStepIndex((current) => (current + 1) % STEP_SEQUENCE.length);
+      const isLastStep = stepIndex === STEP_SEQUENCE.length - 1;
+      if (!isLastStep) {
+        setStepIndex((current) => current + 1);
+        return;
+      }
+
+      const nextCompletedLoops = completedLoops + 1;
+      if (nextCompletedLoops >= MAX_LOOPS_PER_VISIBLE_SESSION) {
+        // Keep the final Totals frame on screen once the budget is exhausted.
+        setSessionComplete(true);
+        return;
+      }
+
+      setCompletedLoops(nextCompletedLoops);
+      setStepIndex(0);
     }, STEP_DURATIONS[STEP_SEQUENCE[stepIndex]]);
 
     return () => clearTimeout(timer);
-  }, [stepIndex, prefersReducedMotion]);
+  }, [canAnimate, completedLoops, sessionComplete, stepIndex]);
 
   const activeTab = useMemo(() => ACTIVE_TAB_BY_STEP[step], [step]);
   // Matches MainApp: Expenses/Settlements are locked until a group is
@@ -88,6 +150,7 @@ const TreasuryDemo: React.FC = () => {
 
   return (
     <Box
+      ref={rootRef}
       aria-hidden="true"
       sx={{
         width: "100%",
