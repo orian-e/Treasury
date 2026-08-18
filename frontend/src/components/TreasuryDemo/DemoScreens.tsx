@@ -82,33 +82,61 @@ export const GroupsScreen: React.FC<{ step: DemoStep }> = ({ step }) => (
 export const ExpensesScreen: React.FC<{ step: DemoStep }> = ({ step }) => {
   const showForm = step === "expenseForm";
   const showNewExpense = step === "expenseSaved";
+  const [addButtonSelected, setAddButtonSelected] = useState(false);
 
-  // Reveal the three values in the same order a person would fill the form.
-  // Three coarse updates preserve the story without re-rendering for every
-  // character throughout every loop.
-  const [filledFields, setFilledFields] = useState(0);
+  // Briefly select the real entry point before changing to the form, so the
+  // transition reads as a user choosing "Add Expense" rather than a jump cut.
+  useEffect(() => {
+    if (step !== "expenses") {
+      setAddButtonSelected(false);
+      return undefined;
+    }
+
+    const timer = setTimeout(() => setAddButtonSelected(true), 1050);
+    return () => clearTimeout(timer);
+  }, [step]);
+
+  // Type the three values in the same order a person would fill the form.
+  // The surrounding demo now has a bounded visible-session budget and stops
+  // off-screen, so this short-lived effect can keep the more legible typeout
+  // while still cleaning up immediately whenever the step changes.
+  const [typedCharacters, setTypedCharacters] = useState(0);
   const typedValues = [
     DEMO_NEW_EXPENSE.label,
     DEMO_NEW_EXPENSE.amount,
     DEMO_NEW_EXPENSE.paidBy,
   ];
+  const totalCharacters = typedValues.reduce(
+    (total, value) => total + value.length,
+    0,
+  );
 
   useEffect(() => {
     if (!showForm) {
-      setFilledFields(0);
+      setTypedCharacters(0);
       return undefined;
     }
+    const timer = setInterval(() => {
+      setTypedCharacters((current) => {
+        const next = Math.min(current + 1, totalCharacters);
+        if (next >= totalCharacters) clearInterval(timer);
+        return next;
+      });
+    }, 80);
 
-    const timers = [350, 700, 1050].map((delay, index) =>
-      setTimeout(() => setFilledFields(index + 1), delay),
+    return () => clearInterval(timer);
+  }, [showForm, totalCharacters]);
+
+  const typedValue = (valueIndex: number) => {
+    const precedingCharacters = typedValues
+      .slice(0, valueIndex)
+      .reduce((total, value) => total + value.length, 0);
+    return typedValues[valueIndex].slice(
+      0,
+      Math.max(0, typedCharacters - precedingCharacters),
     );
-
-    return () => timers.forEach(clearTimeout);
-  }, [showForm]);
-
-  const typedValue = (valueIndex: number) =>
-    filledFields > valueIndex ? typedValues[valueIndex] : "";
-  const expenseReady = filledFields === typedValues.length;
+  };
+  const expenseReady = typedCharacters >= totalCharacters;
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
@@ -242,7 +270,21 @@ export const ExpensesScreen: React.FC<{ step: DemoStep }> = ({ step }) => {
           size="small"
           startIcon={<AddIcon />}
           disabled
-          sx={{ alignSelf: "flex-start", mt: 0.25 }}
+          data-selected={addButtonSelected || undefined}
+          sx={{
+            alignSelf: "flex-start",
+            mt: 0.25,
+            transition:
+              "background-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease",
+            ...(addButtonSelected && {
+              transform: "scale(0.97)",
+              "&.Mui-disabled": {
+                bgcolor: "primary.main",
+                color: "common.white",
+                boxShadow: 2,
+              },
+            }),
+          }}
         >
           Add Expense
         </Button>

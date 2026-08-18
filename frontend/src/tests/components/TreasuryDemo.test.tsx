@@ -75,7 +75,26 @@ describe("TreasuryDemo", () => {
     expect(screen.getByText(DEMO_TOTAL)).toBeInTheDocument();
   });
 
-  it("fills the new expense in three coarse stages", () => {
+  it("selects Add Expense before moving into the form", () => {
+    render(<TreasuryDemo />);
+    advancePastStep("groups");
+    advancePastStep("groupSelected");
+
+    const addButton = screen.getByText("Add Expense").closest("button");
+    expect(addButton).not.toHaveAttribute("data-selected");
+
+    act(() => {
+      jest.advanceTimersByTime(1050);
+    });
+    expect(addButton).toHaveAttribute("data-selected", "true");
+
+    act(() => {
+      jest.advanceTimersByTime(STEP_DURATIONS.expenses - 1050);
+    });
+    expect(screen.getByLabelText("Description")).toBeInTheDocument();
+  });
+
+  it("types the new expense into each field", () => {
     render(<TreasuryDemo />);
     for (const step of STEP_SEQUENCE.slice(0, 3)) {
       advancePastStep(step);
@@ -87,19 +106,19 @@ describe("TreasuryDemo", () => {
     expect(description.value).toBe("");
 
     act(() => {
-      jest.advanceTimersByTime(350);
+      jest.advanceTimersByTime(80 * DEMO_NEW_EXPENSE.label.length);
     });
     expect(description.value).toBe(DEMO_NEW_EXPENSE.label);
     expect(amount.value).toBe("");
 
     act(() => {
-      jest.advanceTimersByTime(350);
+      jest.advanceTimersByTime(80 * DEMO_NEW_EXPENSE.amount.length);
     });
     expect(amount.value).toBe(DEMO_NEW_EXPENSE.amount);
     expect(paidBy.value).toBe("");
 
     act(() => {
-      jest.advanceTimersByTime(350);
+      jest.advanceTimersByTime(80 * DEMO_NEW_EXPENSE.paidBy.length);
     });
     expect(paidBy.value).toBe(DEMO_NEW_EXPENSE.paidBy);
   });
